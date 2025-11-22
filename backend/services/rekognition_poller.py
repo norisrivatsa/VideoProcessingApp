@@ -1,11 +1,14 @@
 import asyncio
 import logging
+import os
 from datetime import datetime
 from database import get_database
 from bson import ObjectId
 from models.video import VideoStatus, SensitivityStatus
 from services.aws_rekognition_analyzer import AWSRekognitionAnalyzer
-from config import settings
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +39,8 @@ class RekognitionPoller:
         self.running = True
         logger.info("Starting RekognitionPoller background task")
 
+        rekognition_poll_interval = int(os.getenv("REKOGNITION_POLL_INTERVAL", "5"))
+
         # Run polling loop
         while self.running:
             try:
@@ -44,7 +49,7 @@ class RekognitionPoller:
                 logger.error(f"Error in polling loop: {e}")
 
             # Wait before next poll
-            await asyncio.sleep(settings.REKOGNITION_POLL_INTERVAL)
+            await asyncio.sleep(rekognition_poll_interval)
 
     async def stop(self):
         """Stop the background polling task"""

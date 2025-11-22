@@ -1,9 +1,12 @@
 import boto3
 import time
 import logging
+import os
 from typing import Dict, List, Optional
-from config import settings
 from botocore.exceptions import ClientError, NoCredentialsError
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -16,26 +19,31 @@ class AWSRekognitionAnalyzer:
 
     def __init__(self):
         """Initialize AWS clients"""
-        if not settings.AWS_ACCESS_KEY_ID or not settings.AWS_SECRET_ACCESS_KEY:
+        aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+        aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+        aws_region = os.getenv("AWS_REGION", "us-east-1")
+        aws_s3_bucket = os.getenv("AWS_S3_BUCKET")
+
+        if not aws_access_key_id or not aws_secret_access_key:
             raise ValueError("AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env")
 
-        if not settings.AWS_S3_BUCKET:
+        if not aws_s3_bucket:
             raise ValueError("AWS S3 bucket not configured. Set AWS_S3_BUCKET in .env")
 
         try:
             # Initialize AWS clients
             self.s3_client = boto3.client(
                 's3',
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_REGION
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                region_name=aws_region
             )
 
             self.rekognition_client = boto3.client(
                 'rekognition',
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_REGION
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                region_name=aws_region
             )
 
             logger.info("AWS Rekognition Analyzer initialized successfully")
@@ -57,18 +65,19 @@ class AWSRekognitionAnalyzer:
         Returns:
             S3 URI of uploaded file
         """
+        aws_s3_bucket = os.getenv("AWS_S3_BUCKET")
         try:
-            logger.info(f"Uploading {local_file_path} to S3 bucket {settings.AWS_S3_BUCKET}")
+            logger.info(f"Uploading {local_file_path} to S3 bucket {aws_s3_bucket}")
 
             # Upload file to S3
             self.s3_client.upload_file(
                 local_file_path,
-                settings.AWS_S3_BUCKET,
+                aws_s3_bucket,
                 s3_key,
                 ExtraArgs={'ContentType': 'video/mp4'}
             )
 
-            s3_uri = f"s3://{settings.AWS_S3_BUCKET}/{s3_key}"
+            s3_uri = f"s3://{aws_s3_bucket}/{s3_key}"
             logger.info(f"Successfully uploaded to {s3_uri}")
 
             return s3_uri
@@ -91,11 +100,12 @@ class AWSRekognitionAnalyzer:
         Returns:
             Presigned URL
         """
+        aws_s3_bucket = os.getenv("AWS_S3_BUCKET")
         try:
             url = self.s3_client.generate_presigned_url(
                 'get_object',
                 Params={
-                    'Bucket': settings.AWS_S3_BUCKET,
+                    'Bucket': aws_s3_bucket,
                     'Key': s3_key
                 },
                 ExpiresIn=expiration
@@ -115,17 +125,20 @@ class AWSRekognitionAnalyzer:
         Returns:
             Job ID for tracking
         """
+        aws_s3_bucket = os.getenv("AWS_S3_BUCKET")
+        rekognition_min_confidence = float(os.getenv("REKOGNITION_MIN_CONFIDENCE", "60.0"))
+
         try:
             logger.info(f"Starting content moderation for {s3_key}")
 
             response = self.rekognition_client.start_content_moderation(
                 Video={
                     'S3Object': {
-                        'Bucket': settings.AWS_S3_BUCKET,
+                        'Bucket': aws_s3_bucket,
                         'Name': s3_key
                     }
                 },
-                MinConfidence=settings.REKOGNITION_MIN_CONFIDENCE
+                MinConfidence=rekognition_min_confidence
             )
 
             job_id = response['JobId']
@@ -188,18 +201,21 @@ class AWSRekognitionAnalyzer:
         Returns:
             Final job results
         """
+        rekognition_poll_interval = int(os.getenv("REKOGNITION_POLL_INTERVAL", "5"))
+        rekognition_max_wait = int(os.getenv("REKOGNITION_MAX_WAIT", "300"))
+
         elapsed_time = 0
-        while elapsed_time < settings.REKOGNITION_MAX_WAIT:
+        while elapsed_time < rekognition_max_wait:
             result = self.get_content_moderation_results(job_id)
 
             if result['status'] in ['SUCCEEDED', 'FAILED']:
                 return result
 
             logger.info(f"Job {job_id} still in progress... ({elapsed_time}s elapsed)")
-            time.sleep(settings.REKOGNITION_POLL_INTERVAL)
-            elapsed_time += settings.REKOGNITION_POLL_INTERVAL
+            time.sleep(rekognition_poll_interval)
+            elapsed_time += rekognition_poll_interval
 
-        raise TimeoutError(f"Job {job_id} did not complete within {settings.REKOGNITION_MAX_WAIT} seconds")
+        raise TimeoutError(f"Job {job_id} did not complete within {rekognition_max_wait} seconds")
 
     def parse_moderation_labels(self, moderation_labels: List[Dict]) -> Dict:
         """

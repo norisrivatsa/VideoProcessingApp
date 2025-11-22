@@ -5,8 +5,11 @@ import uvicorn
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+import os
+from dotenv import load_dotenv
 
-from config import settings
+load_dotenv()
+
 from database import connect_to_mongo, close_mongo_connection
 from routes import auth, videos
 from services.rekognition_poller import RekognitionPoller
@@ -19,9 +22,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create Socket.IO server
+# Parse CORS_ORIGINS from comma-separated string
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=settings.CORS_ORIGINS,
+    cors_allowed_origins=cors_origins,
     logger=True,
     engineio_logger=True
 )
@@ -101,15 +107,15 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
+    title=os.getenv("APP_NAME", "Video Processing App"),
+    version=os.getenv("APP_VERSION", "1.0.0"),
     lifespan=lifespan
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,8 +129,8 @@ app.include_router(videos.router)
 @app.get("/")
 async def root():
     return {
-        "name": settings.APP_NAME,
-        "version": settings.APP_VERSION,
+        "name": os.getenv("APP_NAME", "Video Processing App"),
+        "version": os.getenv("APP_VERSION", "1.0.0"),
         "status": "running"
     }
 
@@ -145,5 +151,5 @@ if __name__ == "__main__":
         "main:socket_app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.DEBUG
+        reload=os.getenv("DEBUG", "True").lower() == "true"
     )

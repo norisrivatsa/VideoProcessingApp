@@ -1,7 +1,10 @@
 from pymongo import MongoClient
 from pymongo.database import Database
-from config import settings
 import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +17,8 @@ mongodb = MongoDB()
 def connect_to_mongo():
     """Connect to MongoDB"""
     try:
-        mongodb.client = MongoClient(settings.MONGODB_URL)
-        mongodb.db = mongodb.client[settings.MONGODB_DB_NAME]
+        mongodb.client = MongoClient(os.getenv("MONGODB_URL"))
+        mongodb.db = mongodb.client[os.getenv("MONGODB_DB_NAME")]
 
         # Create indexes
         mongodb.db.users.create_index("email", unique=True)

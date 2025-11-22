@@ -4,7 +4,6 @@ from models.user import UserInDB, UserRole
 from models.video import VideoCreate, VideoResponse, VideoListResponse, VideoStatus, VideoInDB, SensitivityStatus
 from middleware.auth import get_current_user, get_current_user_optional, require_role
 from database import get_database
-from config import settings
 from bson import ObjectId
 from datetime import datetime
 from services.aws_rekognition_analyzer import AWSRekognitionAnalyzer
@@ -13,8 +12,17 @@ import uuid
 import tempfile
 from typing import Optional
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+# Load configuration from environment variables
+ALLOWED_VIDEO_EXTENSIONS = os.getenv("ALLOWED_VIDEO_EXTENSIONS", ".mp4,.avi,.mov,.mkv").split(",")
+ALLOWED_MIME_TYPES = os.getenv("ALLOWED_MIME_TYPES", "video/mp4,video/x-msvideo,video/quicktime,video/x-matroska").split(",")
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "524288000"))
+AWS_S3_BUCKET = os.getenv("AWS_S3_BUCKET")
 
 # Initialize AWS Rekognition analyzer
 try:
@@ -30,17 +38,17 @@ def validate_video_file(file: UploadFile) -> None:
     """Validate video file type and extension"""
     # Check file extension
     file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in settings.ALLOWED_VIDEO_EXTENSIONS:
+    if file_ext not in ALLOWED_VIDEO_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file type. Allowed: {', '.join(settings.ALLOWED_VIDEO_EXTENSIONS)}"
+            detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}"
         )
 
     # Check MIME type
-    if file.content_type not in settings.ALLOWED_MIME_TYPES:
+    if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid MIME type. Allowed: {', '.join(settings.ALLOWED_MIME_TYPES)}"
+            detail=f"Invalid MIME type. Allowed: {', '.join(ALLOWED_MIME_TYPES)}"
         )
 
 def generate_s3_filename(user_id: str, original_filename: str) -> tuple[str, str]:
@@ -106,10 +114,10 @@ async def upload_video(
             # Write uploaded file to temp location
             while chunk := await file.read(8192):
                 file_size += len(chunk)
-                if file_size > settings.MAX_FILE_SIZE:
+                if file_size > MAX_FILE_SIZE:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=f"File too large. Maximum size: {settings.MAX_FILE_SIZE // (1024*1024)}MB"
+                        detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"
                     )
                 temp_file.write(chunk)
 
@@ -432,7 +440,7 @@ async def stream_video(
             # First check if object exists in S3
             logger.info(f"Checking S3 object existence: {s3_key}")
             video_analyzer.s3_client.head_object(
-                Bucket=settings.AWS_S3_BUCKET,
+                Bucket=AWS_S3_BUCKET,
                 Key=s3_key
             )
 
@@ -517,7 +525,7 @@ async def delete_video(
         try:
             logger.info(f"Deleting video from S3: {s3_key}")
             video_analyzer.s3_client.delete_object(
-                Bucket=settings.AWS_S3_BUCKET,
+                Bucket=AWS_S3_BUCKET,
                 Key=s3_key
             )
             logger.info(f"Successfully deleted from S3: {s3_key}")

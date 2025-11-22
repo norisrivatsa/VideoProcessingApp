@@ -3,7 +3,6 @@ from models.user import UserCreate, UserLogin, Token, UserResponse, UserRole, Us
 from utils.auth import get_password_hash, verify_password, create_access_token
 from middleware.auth import get_current_user, require_role
 from database import get_database
-from config import settings
 from datetime import datetime
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
