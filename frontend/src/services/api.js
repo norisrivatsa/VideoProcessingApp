@@ -143,6 +143,18 @@ export const videosApi = {
     });
     return handleResponse(response);
   },
+
+  update: async (videoId, updates, token) => {
+    const queryParams = new URLSearchParams();
+    if (updates.title) queryParams.append('title', updates.title);
+    if (updates.filename) queryParams.append('filename', updates.filename);
+
+    const response = await fetch(`${API_BASE_URL}/videos/${videoId}?${queryParams.toString()}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+  },
 };
 
 export { ApiError };

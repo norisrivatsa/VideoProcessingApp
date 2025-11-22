@@ -5,9 +5,12 @@ from enum import Enum
 
 class VideoStatus(str, Enum):
     PENDING = "pending"
+    UPLOADED = "uploaded"
     PROCESSING = "processing"
+    PROCESSING_PENDING = "processing_pending"
     COMPLETED = "completed"
     FAILED = "failed"
+    FLAGGED = "flagged"
 
 class SensitivityStatus(str, Enum):
     SAFE = "safe"

@@ -13,6 +13,7 @@ export default function Register() {
     email: '',
     password: '',
     role: 'viewer',
+    admin_key: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -137,6 +138,37 @@ export default function Register() {
                 <option value="admin">Admin</option>
               </select>
             </div>
+
+            {/* Admin Key Input - Only for Viewer/Editor */}
+            {(formData.role === 'viewer' || formData.role === 'editor') && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <label htmlFor="admin_key" className="block text-sm font-medium text-text-primary mb-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                  Admin Key <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="admin_key"
+                  name="admin_key"
+                  value={formData.admin_key}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-yellow-300 rounded-lg font-mono
+                           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                           transition-all duration-200 bg-white"
+                  placeholder="Enter 12-character admin key"
+                  maxLength={12}
+                />
+                <p className="text-xs text-yellow-700 mt-2 flex items-start gap-1">
+                  <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>You need an admin key to register as {formData.role}. Contact your administrator to get one.</span>
+                </p>
+              </div>
+            )}
 
             <button
               type="submit"

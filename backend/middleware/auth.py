@@ -31,7 +31,7 @@ async def get_current_user(
         )
 
     db = get_database()
-    user = db.users.find_one({"_id": ObjectId(user_id)})
+    user = db.users.find_one({"userId": user_id})
 
     if user is None:
         raise HTTPException(
@@ -40,6 +40,9 @@ async def get_current_user(
         )
 
     user["_id"] = str(user["_id"])
+    # Handle backward compatibility for users without userId
+    if "userId" not in user:
+        user["userId"] = ""
     return UserInDB(**user)
 
 async def get_current_user_optional(
@@ -83,7 +86,7 @@ async def get_current_user_optional(
         )
 
     db = get_database()
-    user = db.users.find_one({"_id": ObjectId(user_id)})
+    user = db.users.find_one({"userId": user_id})
 
     if user is None:
         raise HTTPException(
@@ -92,6 +95,9 @@ async def get_current_user_optional(
         )
 
     user["_id"] = str(user["_id"])
+    # Handle backward compatibility for users without userId
+    if "userId" not in user:
+        user["userId"] = ""
     return UserInDB(**user)
 
 def require_role(required_roles: list[UserRole]):

@@ -50,7 +50,12 @@ export default function VideoUpload({ token, onVideoUploaded }) {
         setUploadProgress(Math.round(progress));
       });
 
-      showSuccess('Video uploaded successfully! Processing will start shortly.');
+      // Show success message with rename notification if present
+      const successMessage = response.message
+        ? `Video uploaded successfully! ${response.message}`
+        : 'Video uploaded successfully! Processing will start shortly.';
+      showSuccess(successMessage);
+
       setTitle('');
       setFile(null);
       setUploadProgress(0);
