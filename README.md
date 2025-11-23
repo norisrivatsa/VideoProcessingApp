@@ -6,10 +6,10 @@ A full-stack video management application with upload, sensitivity analysis, and
 
 - **User Authentication**: JWT-based authentication with role-based access control (Viewer, Editor, Admin)
 - **Video Upload**: Secure video upload with file validation (MP4, AVI, MOV, MKV)
-- **Real-time Processing**: Mock sensitivity analysis with Socket.IO progress updates
 - **Video Streaming**: HTTP range request support for efficient video streaming
 - **Multi-tenant Architecture**: Users only see and manage their own videos
 - **Responsive UI**: Mobile and desktop-friendly interface
+- **Video Saftey** : All uplaoded videos are sent to AWS Rekognition for sensitivity analysis
 
 ## Tech Stack
 
@@ -29,161 +29,6 @@ A full-stack video management application with upload, sensitivity analysis, and
 
 ### Database
 - **MongoDB**: NoSQL database for storing user and video metadata
-
-## Prerequisites
-
-- Python 3.8+
-- Node.js 16+
-- MongoDB 4.4+
-
-## Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone <repository-url>
-cd VideoProcessingApp
-```
-
-### 2. Set Up Backend
-
-```bash
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Linux/Mac:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create uploads directory
-mkdir uploads
-```
-
-### 3. Set Up Frontend
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-```
-
-### 4. Configure Environment Variables
-
-Copy `.env.example` to `.env` and update values:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and update the `SECRET_KEY` and MongoDB connection string if needed.
-
-### 5. Start MongoDB
-
-Make sure MongoDB is running on your system:
-
-```bash
-# On Linux with systemd:
-sudo systemctl start mongodb
-
-# On macOS with Homebrew:
-brew services start mongodb-community
-
-# Or run manually:
-mongod --dbpath /path/to/data/directory
-```
-
-## Running the Application
-
-### Start Backend Server
-
-```bash
-cd backend
-source venv/bin/activate  # Activate virtual environment
-python main.py
-```
-
-The backend will start on `http://localhost:8000`
-
-### Start Frontend Development Server
-
-In a new terminal:
-
-```bash
-cd frontend
-npm run dev
-```
-
-The frontend will start on `http://localhost:5173`
-
-## Usage
-
-### 1. Register a New Account
-
-- Navigate to `http://localhost:5173`
-- Click "Register"
-- Choose a role:
-  - **Viewer**: Can only view videos
-  - **Editor**: Can upload, view, and delete their own videos
-  - **Admin**: Full access to all features
-
-### 2. Upload Videos
-
-- Login with an Editor or Admin account
-- Use the upload form on the dashboard
-- Select a video file (MP4, AVI, MOV, or MKV, max 500MB)
-- Processing will start automatically with real-time progress updates
-
-### 3. Watch Videos
-
-- Once processing is complete, videos will show a "Watch" button
-- Click to view the video with the integrated player
-- Videos are streamed efficiently using HTTP range requests
-
-### 4. Filter Videos
-
-- Use the status filter dropdown to view:
-  - All videos
-  - Pending videos
-  - Processing videos
-  - Completed videos
-  - Failed videos
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login and get JWT token
-
-### Videos
-- `POST /api/videos/upload` - Upload video (Editor/Admin only)
-- `GET /api/videos` - List user's videos (with optional status filter)
-- `GET /api/videos/{id}` - Get single video details
-- `GET /api/videos/{id}/stream` - Stream video with range support
-- `DELETE /api/videos/{id}` - Delete video (Editor/Admin only)
-
-### System
-- `GET /` - API information
-- `GET /health` - Health check
-
-## Socket.IO Events
-
-### Client to Server
-- `join_room` - Join user-specific room
-- `start_processing` - Trigger video processing
-
-### Server to Client
-- `processing_started` - Processing has begun
-- `processing_progress` - Progress update (0, 25, 50, 75, 100%)
-- `processing_completed` - Processing finished with sensitivity result
-- `processing_failed` - Processing encountered an error
 
 ## Project Structure
 
@@ -231,40 +76,9 @@ VideoProcessingApp/
 ├── .env                      # Environment variables
 ├── .env.example              # Environment template
 └── README.md                 # This file
+
+
 ```
-
-## Development
-
-### Backend Development
-
-The backend uses FastAPI with automatic reload enabled in development mode:
-
-```bash
-cd backend
-python main.py
-```
-
-Changes to Python files will automatically reload the server.
-
-### Frontend Development
-
-The frontend uses Vite with hot module replacement:
-
-```bash
-cd frontend
-npm run dev
-```
-
-Changes to React components will update instantly in the browser.
-
-### Building for Production
-
-```bash
-cd frontend
-npm run build
-```
-
-This creates an optimized production build in `frontend/dist`.
 
 ## Security Features
 
@@ -276,31 +90,25 @@ This creates an optimized production build in `frontend/dist`.
 - CORS configuration
 - Secure file storage with unique filenames
 
-## Troubleshooting
+### User Handling 
 
-### MongoDB Connection Error
-- Ensure MongoDB is running
-- Check the `MONGODB_URL` in `.env`
-- Verify MongoDB port (default: 27017)
+- A viewer user can only view the videos uploaded by the Admin and Editor
+- An Editor user can only upload, edit file names but cannot delete
+- An Admin user has total control
+- A viewer/editor user can only register with an Admin key provided by the corresponding admin, this links the account to the admin.
+- The admin can view which users are linked under the admin icon in the dashboard.
 
-### CORS Errors
-- Update `CORS_ORIGINS` in `.env` to include your frontend URL
-- Restart the backend server after changes
+### Video Safety Features
 
-### Video Upload Fails
-- Check file size (max 500MB)
-- Verify file type (MP4, AVI, MOV, MKV)
-- Ensure `uploads` directory exists and has write permissions
+- Each video on upload is stored in an S3 bucket, where in it is being viewed by **AWS Rekegnition** which then processes the video and gives us tags/labels of the video, if these labels include:
 
-### Socket.IO Not Connecting
-- Verify backend is running on port 8000
-- Check browser console for connection errors
-- Ensure firewall allows WebSocket connections
-
-## License
-
-MIT License
-
-## Support
-
-For issues and questions, please open an issue on the GitHub repository.
+  -  'Explicit Nudity', 'Nudity', 'Graphic Male Nudity', 'Graphic Female Nudity', 'Sexual Activity', 'Illustrated Explicit Nudity', 'Adult Toys',
+  -  Violence', 'Graphic Violence', 'Physical Violence', 'Weapon Violence',
+  -   'Weapons', 'Self Injury', 'Emaciated Bodies', 'Corpses',
+  -  Hanging', 'Air Crash', 'Explosions And Blasts',
+  -  Visually Disturbing', 'Gambling', 'Hate Symbols',
+  -  Rude Gestures', 'Middle Finger'
+- Then they are flagged and disabled to view/play, and if the videos labels include :
+  - Suggestive', 'Female Swimwear Or Underwear', 'Male Swimwear Or Underwear',
+  - 'Revealing Clothes', 'Partial Nudity'
+- Then they will be flagged but not disabled
